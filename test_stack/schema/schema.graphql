@@ -1,0 +1,12 @@
+type User {
+  id: ID!
+  email: String!
+}
+
+type Query {
+  viewer: User
+}
+
+type Mutation {
+  testMutation: Boolean
+}
