@@ -1,4 +1,3 @@
-
 import uuid
 
 import requests
@@ -45,21 +44,44 @@ def test_appsync_cognito_auth(session):
         AuthParameters={"USERNAME": email, "PASSWORD": pw},
     )
 
-    token = response["AuthenticationResult"]["IdToken"]
-    auth_header = f"Bearer {token}"
-
-    headers = {"Authorization": auth_header, 'Content-type': 'application/json'}
-
-    print("request headers")
-    print(headers)
+    access_token = response["AuthenticationResult"]["AccessToken"]
+    id_token = response["AuthenticationResult"]["IdToken"]
 
     # Test GraphQL endpoint
     query = """query {
         viewer { email }
     }
     """
-    response = requests.post(
-        url=api_endpoint, json={"query": query}, headers={"Authorization": auth_header, 'Content-type': 'application/json'}
+
+    # Localstack supports Id token auth, but only with the "Bearer" prefix
+    # (appsync allows with or without Bearer prefix)
+
+    id_token_response = requests.post(
+        url=api_endpoint,
+        json={"query": query},
+        headers={
+            "Authorization": "Bearer " + id_token,
+            "Content-type": "application/json",
+        },
     )
 
-    assert response.status_code == 200
+    assert id_token_response.status_code == 200
+
+    # However, access token isn't working with localstack
+    # (with or without Bearer prefix)
+
+    # Note: amplify-js uses the access token without the "Bearer" prefix:
+    # https://github.com/aws-amplify/amplify-js/blob/e1b0b5be3e8ccb3c76e8e2e2f43f910d40d73254/packages/api-graphql/src/GraphQLAPI.ts#L174
+
+    access_token_response = requests.post(
+        url=api_endpoint,
+        json={"query": query},
+        headers={
+            "Authorization": access_token,
+            "Content-type": "application/json",
+        },
+    )
+
+    # This fails:
+
+    assert access_token_response.status_code == 200
